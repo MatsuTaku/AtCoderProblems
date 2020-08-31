@@ -44,12 +44,12 @@ import {
 const logit = (x: number) => Math.log(x / (1 - x));
 const sigmoid = (x: number) => 1 / (1 + Math.exp(-x));
 
-const SolveProbabilityInf = 0.03;
+const SolveProbabilityInf = 0.08;
 const XAtSup = logit(SolveProbabilityInf);
 const SolveProbabilityThresholds = [
-  sigmoid(-XAtSup / 5),
-  sigmoid(XAtSup / 5),
-  sigmoid((XAtSup * 3) / 5),
+  sigmoid(-XAtSup),
+  sigmoid(-XAtSup / 3),
+  sigmoid(XAtSup / 3),
   SolveProbabilityInf,
 ] as const;
 
@@ -143,17 +143,17 @@ export const Recommendation2: React.FC<Props> = (props) => {
 
   const recommendationDataList = [
     {
-      name: "Moderate",
-      color: theme.difficultyBlueColor,
+      name: "Stable",
+      color: theme.difficultyGreenColor,
       problems: classifiedProblemsOfId(0),
     },
     {
-      name: "Difficult",
-      color: theme.difficultyYellowColor,
+      name: "Moderate",
+      color: theme.difficultyBlueColor,
       problems: classifiedProblemsOfId(1),
     },
     {
-      name: "Challenge",
+      name: "Difficult",
       color: theme.difficultyOrangeColor,
       problems: classifiedProblemsOfId(2),
     },
