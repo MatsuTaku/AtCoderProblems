@@ -35,73 +35,12 @@ import {
   ExcludeOption,
   ExcludeOptions,
   formatExcludeOption,
+  getRecommendProbability,
+  getRecommendProbabilityRange,
   isIncluded,
+  RECOMMEND_NUM_OPTIONS,
+  RecommendOption,
 } from "./Option";
-
-const RECOMMEND_NUM_OPTIONS = [
-  {
-    text: "10",
-    value: 10,
-  },
-  {
-    text: "20",
-    value: 20,
-  },
-  {
-    text: "50",
-    value: 50,
-  },
-  {
-    text: "100",
-    value: 100,
-  },
-  {
-    text: "All",
-    value: Number.POSITIVE_INFINITY,
-  },
-];
-
-type RecommendOption = "Easy" | "Moderate" | "Difficult";
-
-const getRecommendProbability = (option: RecommendOption): number => {
-  switch (option) {
-    case "Easy":
-      return 0.8;
-    case "Moderate":
-      return 0.5;
-    case "Difficult":
-      return 0.2;
-    default:
-      return 0.0;
-  }
-};
-
-const getRecommendProbabilityRange = (
-  option: RecommendOption
-): { lowerBound: number; upperBound: number } => {
-  switch (option) {
-    case "Easy":
-      return {
-        lowerBound: 0.5,
-        upperBound: Number.POSITIVE_INFINITY,
-      };
-    case "Moderate":
-      return {
-        lowerBound: 0.2,
-        upperBound: 0.8,
-      };
-    case "Difficult":
-      return {
-        lowerBound: Number.NEGATIVE_INFINITY,
-        upperBound: 0.5,
-      };
-    default:
-      return {
-        lowerBound: Number.NEGATIVE_INFINITY,
-        upperBound: Number.POSITIVE_INFINITY,
-      };
-  }
-};
 
 interface Props {
   readonly userSubmissions: Submission[];
@@ -179,6 +118,11 @@ export const Recommendations: React.FC<Props> = (props) => {
       }
       return { ...p, predictedSolveTime, predictedSolveProbability };
     })
+    .filter(
+      (p) =>
+        recommendingRange.lowerBound <= p.predictedSolveProbability &&
+        p.predictedSolveProbability < recommendingRange.upperBound
+    )
     .sort((a, b) => {
       const da = Math.abs(
         a.predictedSolveProbability - recommendingProbability
@@ -188,11 +132,6 @@ export const Recommendations: React.FC<Props> = (props) => {
       );
       return da - db;
     })
-    .filter(
-      (p) =>
-        recommendingRange.lowerBound <= p.predictedSolveProbability &&
-        p.predictedSolveProbability < recommendingRange.upperBound
-    )
     .slice(0, recommendNum)
     .sort((a, b) => (b.difficulty ?? 0) - (a.difficulty ?? 0))
     .toArray();

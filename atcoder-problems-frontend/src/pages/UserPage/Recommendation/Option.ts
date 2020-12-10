@@ -1,5 +1,70 @@
 import { ProblemId } from "../../../interfaces/Status";
 
+export const RECOMMEND_NUM_OPTIONS = [
+  {
+    text: "10",
+    value: 10,
+  },
+  {
+    text: "20",
+    value: 20,
+  },
+  {
+    text: "50",
+    value: 50,
+  },
+  {
+    text: "100",
+    value: 100,
+  },
+  {
+    text: "All",
+    value: Number.POSITIVE_INFINITY,
+  },
+];
+
+export type RecommendOption = "Easy" | "Moderate" | "Difficult";
+
+export const getRecommendProbability = (option: RecommendOption): number => {
+  switch (option) {
+    case "Easy":
+      return 0.8;
+    case "Moderate":
+      return 0.5;
+    case "Difficult":
+      return 0.2;
+    default:
+      return 0.0;
+  }
+};
+
+export const getRecommendProbabilityRange = (
+  option: RecommendOption
+): { lowerBound: number; upperBound: number } => {
+  switch (option) {
+    case "Easy":
+      return {
+        lowerBound: 0.5,
+        upperBound: Number.POSITIVE_INFINITY,
+      };
+    case "Moderate":
+      return {
+        lowerBound: 0.2,
+        upperBound: 0.8,
+      };
+    case "Difficult":
+      return {
+        lowerBound: Number.NEGATIVE_INFINITY,
+        upperBound: 0.5,
+      };
+    default:
+      return {
+        lowerBound: Number.NEGATIVE_INFINITY,
+        upperBound: Number.POSITIVE_INFINITY,
+      };
+  }
+};
+
 export const ExcludeOptions = [
   "Exclude",
   "1 Week",
@@ -54,3 +119,15 @@ export const isIncluded = (
     return true;
   }
 };
+
+// const logit = (x: number) => Math.log(x / (1 - x));
+// const sigmoid = (x: number) => 1 / (1 + Math.exp(-x));
+//
+// const SolveProbabilityInf = 0.03;
+// const XAtSup = logit(SolveProbabilityInf);
+// export const SolveProbabilityThresholds = [
+//   sigmoid(-XAtSup / 5),
+//   sigmoid(XAtSup / 5),
+//   sigmoid((XAtSup * 3) / 5),
+//   SolveProbabilityInf,
+// ] as const;

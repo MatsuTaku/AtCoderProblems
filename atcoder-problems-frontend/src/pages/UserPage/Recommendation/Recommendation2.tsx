@@ -38,20 +38,11 @@ import {
   ExcludeOption,
   ExcludeOptions,
   formatExcludeOption,
+  getRecommendProbability,
+  getRecommendProbabilityRange,
   isIncluded,
+  RecommendOption,
 } from "./Option";
-
-const logit = (x: number) => Math.log(x / (1 - x));
-const sigmoid = (x: number) => 1 / (1 + Math.exp(-x));
-
-const SolveProbabilityInf = 0.03;
-const XAtSup = logit(SolveProbabilityInf);
-const SolveProbabilityThresholds = [
-  sigmoid(-XAtSup / 5),
-  sigmoid(XAtSup / 5),
-  sigmoid((XAtSup * 3) / 5),
-  SolveProbabilityInf,
-] as const;
 
 const NumProblemsToShow = 6;
 
@@ -100,59 +91,65 @@ export const Recommendation2: React.FC<Props> = (props) => {
     .filter((p) => p.difficulty !== undefined)
     .map((p) => {
       const internalRating = userRatingInfo.internalRating;
-      let predictedSolveProbability = -1;
-      let predictedSolveTime: number | null = null;
-      if (internalRating !== null) {
-        const problemModel: ProblemModel = problemModels.get(p.id, {
-          slope: undefined,
-          difficulty: undefined,
-          rawDifficulty: undefined,
-          intercept: undefined,
-          discrimination: undefined,
-          is_experimental: false,
-          variance: undefined,
-        });
+      let predictedSolveTime: number | null;
+      let predictedSolveProbability: number;
+      if (internalRating === null) {
+        predictedSolveTime = null;
+        predictedSolveProbability = -1;
+      } else {
+        const problemModel: ProblemModel | undefined = problemModels.get(p.id);
+        if (isProblemModelWithTimeModel(problemModel)) {
+          predictedSolveTime = predictSolveTime(problemModel, internalRating);
+        } else {
+          predictedSolveTime = null;
+        }
         if (isProblemModelWithDifficultyModel(problemModel)) {
           predictedSolveProbability = predictSolveProbability(
             problemModel,
             internalRating
           );
-        }
-        if (isProblemModelWithTimeModel(problemModel)) {
-          predictedSolveTime = predictSolveTime(problemModel, internalRating);
+        } else {
+          predictedSolveProbability = -1;
         }
       }
-      return { ...p, predictedSolveProbability, predictedSolveTime };
-    })
-    .filter(
-      (p) =>
-        SolveProbabilityThresholds[0] >= p.predictedSolveProbability &&
-        p.predictedSolveProbability > SolveProbabilityThresholds[3]
-    );
-  const classifiedProblemsOfId = (id: number) => {
-    const list = problemCandidates.filter(
-      (p) =>
-        SolveProbabilityThresholds[id] >= p.predictedSolveProbability &&
-        p.predictedSolveProbability > SolveProbabilityThresholds[id + 1]
-    );
-    return shuffleList(list).slice(0, NumProblemsToShow).toArray();
+      return { ...p, predictedSolveTime, predictedSolveProbability };
+    });
+  const classifiedProblems = (recommendOption: RecommendOption) => {
+    const recommendingProbability = getRecommendProbability(recommendOption);
+    const recommendingRange = getRecommendProbabilityRange(recommendOption);
+    const list = problemCandidates
+      .filter(
+        (p) =>
+          recommendingRange.lowerBound <= p.predictedSolveProbability &&
+          p.predictedSolveProbability < recommendingRange.upperBound
+      )
+      .sort((a, b) => {
+        const da = Math.abs(
+          a.predictedSolveProbability - recommendingProbability
+        );
+        const db = Math.abs(
+          b.predictedSolveProbability - recommendingProbability
+        );
+        return da - db;
+      })
+      .slice(0, NumProblemsToShow);
+    return shuffleList(list).toArray();
   };
-
   const recommendationDataList = [
+    {
+      name: "Easy",
+      color: theme.difficultyGreenColor,
+      problems: classifiedProblems("Easy"),
+    },
     {
       name: "Moderate",
       color: theme.difficultyBlueColor,
-      problems: classifiedProblemsOfId(0),
+      problems: classifiedProblems("Moderate"),
     },
     {
       name: "Difficult",
-      color: theme.difficultyYellowColor,
-      problems: classifiedProblemsOfId(1),
-    },
-    {
-      name: "Challenge",
       color: theme.difficultyOrangeColor,
-      problems: classifiedProblemsOfId(2),
+      problems: classifiedProblems("Difficult"),
     },
   ];
 
