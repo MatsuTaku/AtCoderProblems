@@ -48,7 +48,7 @@ interface Props {
   readonly userSubmissions: Submission[];
 }
 
-export const Recommendation2: React.FC<Props> = (props) => {
+export const RecommendationHidden: React.FC<Props> = (props) => {
   const {
     problems,
     contests,

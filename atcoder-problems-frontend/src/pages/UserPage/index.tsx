@@ -23,7 +23,7 @@ import { PieChartBlock } from "./PieChartBlock";
 import { AchievementBlock } from "./AchievementBlock";
 import { ProgressChartBlock } from "./ProgressChartBlock";
 import { Recommendations } from "./Recommendation/Recommendations";
-import { Recommendation2 } from "./Recommendation/Recommendation2";
+import { RecommendationHidden } from "./Recommendation/RecommendationHidden";
 import { LanguageCount } from "./LanguageCount";
 import { DifficultyPieChart } from "./DifficultyPieChart";
 import { TrophyBlock } from "./TrophyBlock/TrophyBlock";
@@ -34,8 +34,8 @@ const userPageTabs = [
   "Difficulty Pies",
   "Progress Charts",
   "Submissions",
-  "Recommendation",
-  "Recommendation2",
+  "Recommendation (open)",
+  "Recommendation (hidden)",
   "Languages",
   "Trophy",
   "All",
@@ -236,10 +236,10 @@ const InnerUserPage: React.FC<InnerProps> = (props) => {
           />
         </>
       )}
-      {(userPageTab === "All" || userPageTab === "Recommendation") && (
+      {(userPageTab === "All" || userPageTab === "Recommendation (open)") && (
         <>
           <Row className="my-2 border-bottom">
-            <h1>Recommendation</h1>
+            <h1>Recommendation (open)</h1>
           </Row>
           <Recommendations
             userSubmissions={userSubmissions}
@@ -250,12 +250,12 @@ const InnerUserPage: React.FC<InnerProps> = (props) => {
           />
         </>
       )}
-      {(userPageTab === "All" || userPageTab === "Recommendation2") && (
+      {(userPageTab === "All" || userPageTab === "Recommendation (hidden)") && (
         <>
           <Row className="my-2 border-bottom">
-            <h1>Recommendation2</h1>
+            <h1>Recommendation (hidden)</h1>
           </Row>
-          <Recommendation2
+          <RecommendationHidden
             problems={mergedProblems.valueSeq().toList()}
             contests={contests}
             problemModels={problemModels}
