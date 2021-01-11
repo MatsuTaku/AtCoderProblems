@@ -10,38 +10,30 @@ import {
   Row,
   UncontrolledDropdown,
 } from "reactstrap";
-import { isAccepted } from "../../../utils";
 import * as Url from "../../../utils/Url";
 import Submission from "../../../interfaces/Submission";
 import Problem from "../../../interfaces/Problem";
+import ProblemModel from "../../../interfaces/ProblemModel";
 import Contest from "../../../interfaces/Contest";
-import ProblemModel, {
-  isProblemModelWithDifficultyModel,
-  isProblemModelWithTimeModel,
-} from "../../../interfaces/ProblemModel";
 import { RatingInfo } from "../../../utils/RatingInfo";
 import {
   formatPredictedSolveProbability,
   formatPredictedSolveTime,
-  predictSolveProbability,
-  predictSolveTime,
 } from "../../../utils/ProblemModelUtil";
 import { HelpBadgeTooltip } from "../../../components/HelpBadgeTooltip";
 import { ProblemLink } from "../../../components/ProblemLink";
 import { ContestLink } from "../../../components/ContestLink";
 import { NewTabLink } from "../../../components/NewTabLink";
-import { ProblemId } from "../../../interfaces/Status";
 import {
   ExcludeOption,
   ExcludeOptions,
-  excludeSubmittedproblem,
   formatExcludeOption,
+  getCandidatesInProblems,
   getRecommendProbability,
   getRecommendProbabilityRange,
-  isIncluded,
   RECOMMEND_NUM_OPTIONS,
   RecommendOption,
-} from "./Option";
+} from "./Common";
 
 interface Props {
   readonly userSubmissions: Submission[];
@@ -67,63 +59,17 @@ export const Recommendations: React.FC<Props> = (props) => {
   const [recommendExperimental, setRecommendExperimental] = useState(true);
   const [excludeOption, setExcludeOption] = useState<ExcludeOption>("Exclude");
 
-  if (userSubmissions.length === 0) {
-    return null;
-  }
-  const lastSolvedTimeMap = new Map<ProblemId, number>();
-  userSubmissions
-    .filter((s) => isAccepted(s.result))
-    .forEach((s) => {
-      const cur = lastSolvedTimeMap.get(s.problem_id) ?? 0;
-      lastSolvedTimeMap.set(s.problem_id, Math.max(s.epoch_second, cur));
-    });
-
   const recommendingProbability = getRecommendProbability(recommendOption);
   const recommendingRange = getRecommendProbabilityRange(recommendOption);
 
-  const currentSecond = Math.floor(new Date().getTime() / 1000);
-  const submittedSet = userSubmissions.reduce((set, s) => {
-    set.add(s.problem_id);
-    return set;
-  }, new Set<ProblemId>());
-  const recommendedProblems = problems
-    .filter((p) =>
-      isIncluded(p.id, excludeOption, currentSecond, lastSolvedTimeMap)
-    )
-    .filter((p) => excludeSubmittedproblem(p.id, excludeOption, submittedSet))
-    .filter((p) => problemModels.has(p.id))
-    .map((p) => ({
-      ...p,
-      difficulty: problemModels.get(p.id)?.difficulty,
-      is_experimental: problemModels.get(p.id)?.is_experimental ?? false,
-    }))
-    .filter((p) => recommendExperimental || !p.is_experimental)
-    .filter((p) => p.difficulty !== undefined)
-    .map((p) => {
-      const internalRating = userRatingInfo.internalRating;
-      let predictedSolveTime: number | null;
-      let predictedSolveProbability: number;
-      if (internalRating === null) {
-        predictedSolveTime = null;
-        predictedSolveProbability = -1;
-      } else {
-        const problemModel: ProblemModel | undefined = problemModels.get(p.id);
-        if (isProblemModelWithTimeModel(problemModel)) {
-          predictedSolveTime = predictSolveTime(problemModel, internalRating);
-        } else {
-          predictedSolveTime = null;
-        }
-        if (isProblemModelWithDifficultyModel(problemModel)) {
-          predictedSolveProbability = predictSolveProbability(
-            problemModel,
-            internalRating
-          );
-        } else {
-          predictedSolveProbability = -1;
-        }
-      }
-      return { ...p, predictedSolveTime, predictedSolveProbability };
-    })
+  const recommendedProblems = getCandidatesInProblems(
+    problems,
+    excludeOption,
+    userSubmissions,
+    problemModels,
+    recommendExperimental,
+    userRatingInfo
+  )
     .filter(
       (p) =>
         recommendingRange.lowerBound <= p.predictedSolveProbability &&

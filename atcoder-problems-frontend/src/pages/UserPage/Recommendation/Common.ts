@@ -1,4 +1,17 @@
+import { List, Map as ImmutableMap } from "immutable";
 import { ProblemId } from "../../../interfaces/Status";
+import Problem from "../../../interfaces/Problem";
+import ProblemModel, {
+  isProblemModelWithDifficultyModel,
+  isProblemModelWithTimeModel,
+} from "../../../interfaces/ProblemModel";
+import Submission from "../../../interfaces/Submission";
+import {
+  predictSolveProbability,
+  predictSolveTime,
+} from "../../../utils/ProblemModelUtil";
+import { isAccepted } from "../../../utils";
+import { RatingInfo } from "../../../utils/RatingInfo";
 
 export const ExcludeOptions = [
   "Exclude",
@@ -30,7 +43,7 @@ export const formatExcludeOption = (excludeOption: ExcludeOption): string => {
   }
 };
 
-export const isIncluded = (
+const isIncluded = (
   problemId: string,
   excludeOption: ExcludeOption,
   currentSecond: number,
@@ -59,7 +72,7 @@ export const isIncluded = (
   }
 };
 
-export const excludeSubmittedproblem = (
+const excludeSubmittedProblemFilter = (
   problemId: ProblemId,
   excludeOption: ExcludeOption,
   submitted: Set<ProblemId>
@@ -70,6 +83,68 @@ export const excludeSubmittedproblem = (
     default:
       return true;
   }
+};
+
+export const getCandidatesInProblems = (
+  problems: List<Problem>,
+  excludeOption: ExcludeOption,
+  userSubmissions: Submission[],
+  problemModels: ImmutableMap<string, ProblemModel>,
+  includeExperimental: boolean,
+  userRatingInfo: RatingInfo
+) => {
+  const currentSecond = Math.floor(new Date().getTime() / 1000);
+  const lastSolvedTimeMap = new Map<ProblemId, number>();
+  userSubmissions
+    .filter((s) => isAccepted(s.result))
+    .forEach((s) => {
+      const cur = lastSolvedTimeMap.get(s.problem_id) ?? 0;
+      lastSolvedTimeMap.set(s.problem_id, Math.max(s.epoch_second, cur));
+    });
+  const submittedSet = userSubmissions.reduce((set, s) => {
+    set.add(s.problem_id);
+    return set;
+  }, new Set<ProblemId>());
+  return problems
+    .filter((p) =>
+      isIncluded(p.id, excludeOption, currentSecond, lastSolvedTimeMap)
+    )
+    .filter((p) =>
+      excludeSubmittedProblemFilter(p.id, excludeOption, submittedSet)
+    )
+    .filter((p) => problemModels.has(p.id))
+    .map((p) => ({
+      ...p,
+      difficulty: problemModels.get(p.id)?.difficulty,
+      is_experimental: problemModels.get(p.id)?.is_experimental ?? false,
+    }))
+    .filter((p) => includeExperimental || !p.is_experimental)
+    .filter((p) => p.difficulty !== undefined)
+    .map((p) => {
+      const internalRating = userRatingInfo.internalRating;
+      let predictedSolveTime: number | null;
+      let predictedSolveProbability: number;
+      if (internalRating === null) {
+        predictedSolveTime = null;
+        predictedSolveProbability = -1;
+      } else {
+        const problemModel: ProblemModel | undefined = problemModels.get(p.id);
+        if (isProblemModelWithTimeModel(problemModel)) {
+          predictedSolveTime = predictSolveTime(problemModel, internalRating);
+        } else {
+          predictedSolveTime = null;
+        }
+        if (isProblemModelWithDifficultyModel(problemModel)) {
+          predictedSolveProbability = predictSolveProbability(
+            problemModel,
+            internalRating
+          );
+        } else {
+          predictedSolveProbability = -1;
+        }
+      }
+      return { ...p, predictedSolveTime, predictedSolveProbability };
+    });
 };
 
 export const RECOMMEND_NUM_OPTIONS = [

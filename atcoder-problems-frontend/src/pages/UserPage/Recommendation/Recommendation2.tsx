@@ -12,19 +12,14 @@ import {
   Row,
   UncontrolledDropdown,
 } from "reactstrap";
-import ProblemModel, {
-  isProblemModelWithDifficultyModel,
-  isProblemModelWithTimeModel,
-} from "../../../interfaces/ProblemModel";
 import { RatingInfo } from "../../../utils/RatingInfo";
 import Problem from "../../../interfaces/Problem";
+import ProblemModel from "../../../interfaces/ProblemModel";
 import {
   formatPredictedSolveProbability,
   formatPredictedSolveTime,
-  predictSolveProbability,
-  predictSolveTime,
 } from "../../../utils/ProblemModelUtil";
-import { isAccepted, shuffleList } from "../../../utils";
+import { shuffleList } from "../../../utils";
 import { ProblemLink } from "../../../components/ProblemLink";
 import { useTheme } from "../../../components/ThemeProvider";
 import { HelpBadgeModal } from "../../../components/HelpBadgeModal";
@@ -32,18 +27,16 @@ import { ContestLink } from "../../../components/ContestLink";
 import Contest from "../../../interfaces/Contest";
 import { NewTabLink } from "../../../components/NewTabLink";
 import * as Url from "../../../utils/Url";
-import { ProblemId } from "../../../interfaces/Status";
 import Submission from "../../../interfaces/Submission";
 import {
   ExcludeOption,
   ExcludeOptions,
-  excludeSubmittedproblem,
   formatExcludeOption,
+  getCandidatesInProblems,
   getRecommendProbability,
   getRecommendProbabilityRange,
-  isIncluded,
   RecommendOption,
-} from "./Option";
+} from "./Common";
 
 const NumProblemsToShow = 6;
 
@@ -69,56 +62,14 @@ export const Recommendation2: React.FC<Props> = (props) => {
 
   const theme = useTheme();
 
-  const lastSolvedTimeMap = new Map<ProblemId, number>();
-  userSubmissions
-    .filter((s) => isAccepted(s.result))
-    .forEach((s) => {
-      const cur = lastSolvedTimeMap.get(s.problem_id) ?? 0;
-      lastSolvedTimeMap.set(s.problem_id, Math.max(s.epoch_second, cur));
-    });
-  const currentSecond = Math.floor(new Date().getTime() / 1000);
-  const submittedSet = userSubmissions.reduce((set, s) => {
-    set.add(s.problem_id);
-    return set;
-  }, new Set<ProblemId>());
-  const problemCandidates = problems
-    .filter((p) =>
-      isIncluded(p.id, excludeOption, currentSecond, lastSolvedTimeMap)
-    )
-    .filter((p) => excludeSubmittedproblem(p.id, excludeOption, submittedSet))
-    .filter((p) => problemModels.has(p.id))
-    .map((p) => ({
-      ...p,
-      difficulty: problemModels.get(p.id)?.difficulty,
-      is_experimental: problemModels.get(p.id)?.is_experimental ?? false,
-    }))
-    .filter((p) => includeExperimental || !p.is_experimental)
-    .filter((p) => p.difficulty !== undefined)
-    .map((p) => {
-      const internalRating = userRatingInfo.internalRating;
-      let predictedSolveTime: number | null;
-      let predictedSolveProbability: number;
-      if (internalRating === null) {
-        predictedSolveTime = null;
-        predictedSolveProbability = -1;
-      } else {
-        const problemModel: ProblemModel | undefined = problemModels.get(p.id);
-        if (isProblemModelWithTimeModel(problemModel)) {
-          predictedSolveTime = predictSolveTime(problemModel, internalRating);
-        } else {
-          predictedSolveTime = null;
-        }
-        if (isProblemModelWithDifficultyModel(problemModel)) {
-          predictedSolveProbability = predictSolveProbability(
-            problemModel,
-            internalRating
-          );
-        } else {
-          predictedSolveProbability = -1;
-        }
-      }
-      return { ...p, predictedSolveTime, predictedSolveProbability };
-    });
+  const problemCandidates = getCandidatesInProblems(
+    problems,
+    excludeOption,
+    userSubmissions,
+    problemModels,
+    includeExperimental,
+    userRatingInfo
+  );
   const classifiedProblems = (recommendOption: RecommendOption) => {
     const recommendingProbability = getRecommendProbability(recommendOption);
     const recommendingRange = getRecommendProbabilityRange(recommendOption);
