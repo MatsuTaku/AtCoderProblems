@@ -34,6 +34,7 @@ import { ProblemId } from "../../../interfaces/Status";
 import {
   ExcludeOption,
   ExcludeOptions,
+  excludeSubmittedproblem,
   formatExcludeOption,
   getRecommendProbability,
   getRecommendProbabilityRange,
@@ -81,10 +82,15 @@ export const Recommendations: React.FC<Props> = (props) => {
   const recommendingRange = getRecommendProbabilityRange(recommendOption);
 
   const currentSecond = Math.floor(new Date().getTime() / 1000);
+  const submittedSet = userSubmissions.reduce((set, s) => {
+    set.add(s.problem_id);
+    return set;
+  }, new Set<ProblemId>());
   const recommendedProblems = problems
     .filter((p) =>
       isIncluded(p.id, excludeOption, currentSecond, lastSolvedTimeMap)
     )
+    .filter((p) => excludeSubmittedproblem(p.id, excludeOption, submittedSet))
     .filter((p) => problemModels.has(p.id))
     .map((p) => ({
       ...p,

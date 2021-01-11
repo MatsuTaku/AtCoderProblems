@@ -37,6 +37,7 @@ import Submission from "../../../interfaces/Submission";
 import {
   ExcludeOption,
   ExcludeOptions,
+  excludeSubmittedproblem,
   formatExcludeOption,
   getRecommendProbability,
   getRecommendProbabilityRange,
@@ -76,11 +77,15 @@ export const Recommendation2: React.FC<Props> = (props) => {
       lastSolvedTimeMap.set(s.problem_id, Math.max(s.epoch_second, cur));
     });
   const currentSecond = Math.floor(new Date().getTime() / 1000);
-
+  const submittedSet = userSubmissions.reduce((set, s) => {
+    set.add(s.problem_id);
+    return set;
+  }, new Set<ProblemId>());
   const problemCandidates = problems
     .filter((p) =>
       isIncluded(p.id, excludeOption, currentSecond, lastSolvedTimeMap)
     )
+    .filter((p) => excludeSubmittedproblem(p.id, excludeOption, submittedSet))
     .filter((p) => problemModels.has(p.id))
     .map((p) => ({
       ...p,
