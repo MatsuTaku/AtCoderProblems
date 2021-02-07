@@ -40,15 +40,6 @@ import { NewTabLink } from "../../components/NewTabLink";
 import { ProblemId } from "../../interfaces/Status";
 import { PROBLEMID_SEPARATE_SYMBOL } from "../../utils/QueryString";
 
-interface Props {
-  readonly userSubmissions: Submission[];
-  readonly problems: List<Problem>;
-  readonly contests: ImmutableMap<string, Contest>;
-  readonly problemModels: ImmutableMap<string, ProblemModel>;
-  readonly userRatingInfo: RatingInfo;
-  readonly isLoggedIn?: boolean;
-}
-
 const ExcludeOptions = [
   "Exclude",
   "Exclude submitted",
@@ -221,6 +212,215 @@ const problemIdSetReducer = (
   }
 };
 
+interface FilterBarProps {
+  readonly recommendOption: RecommendOption;
+  readonly setRecommendOption: (type: RecommendOption) => void;
+  readonly excludeOption: ExcludeOption;
+  readonly setExcludeOption: (option: ExcludeOption) => void;
+  readonly recommendExperimental: boolean;
+  readonly setRecommendExperimental: (recommend: boolean) => void;
+  readonly recommendNum: number;
+  readonly setRecommendNum: (num: number) => void;
+}
+
+const RecommendationsFilterBar: React.FC<FilterBarProps> = (props) => {
+  const {
+    recommendOption,
+    setRecommendOption,
+    excludeOption,
+    setExcludeOption,
+    recommendExperimental,
+    setRecommendExperimental,
+    recommendNum,
+    setRecommendNum,
+  } = props;
+  return (
+    <Row className="my-3 d-flex justify-content-between">
+      <div>
+        <ButtonGroup className="mr-3">
+          {RecommendOptions.map((type) => (
+            <Button
+              key={type}
+              active={recommendOption === type}
+              onClick={(): void => setRecommendOption(type)}
+            >
+              {type}
+            </Button>
+          ))}
+        </ButtonGroup>
+        <ButtonGroup className="mr-3">
+          <UncontrolledDropdown>
+            <DropdownToggle caret>
+              {formatExcludeOption(excludeOption)}
+            </DropdownToggle>
+            <DropdownMenu>
+              {ExcludeOptions.map((option) => (
+                <DropdownItem
+                  key={option}
+                  onClick={(): void => setExcludeOption(option)}
+                >
+                  {formatExcludeOption(option)}
+                </DropdownItem>
+              ))}
+            </DropdownMenu>
+          </UncontrolledDropdown>
+        </ButtonGroup>
+        <CustomInput
+          type="switch"
+          id="switchRecommendExperimental"
+          inline
+          label={
+            <span role="img" aria-label="experimental">
+              🧪
+            </span>
+          }
+          checked={recommendExperimental}
+          onChange={() => setRecommendExperimental(!recommendExperimental)}
+        />
+      </div>
+      <UncontrolledDropdown direction="left">
+        <DropdownToggle caret>
+          {recommendNum === Number.POSITIVE_INFINITY ? "All" : recommendNum}
+        </DropdownToggle>
+        <DropdownMenu>
+          {RECOMMEND_NUM_OPTIONS.map(({ text, value }) => (
+            <DropdownItem
+              key={value}
+              onClick={(): void => setRecommendNum(value)}
+            >
+              {text}
+            </DropdownItem>
+          ))}
+        </DropdownMenu>
+      </UncontrolledDropdown>
+    </Row>
+  );
+};
+
+interface RecommendedProblem extends Problem {
+  difficulty: number | undefined;
+  is_experimental: boolean;
+  predictedSolveTime: number | null;
+  predictedSolveProbability: number;
+}
+
+interface TableProps {
+  readonly recommendedProblems: RecommendedProblem[];
+  readonly selectRow: SelectRow;
+  readonly contests: ImmutableMap<string, Contest>;
+  readonly problemModels: ImmutableMap<string, ProblemModel>;
+  readonly userRatingInfo: RatingInfo;
+}
+
+const RecommendationsTable: React.FC<TableProps> = (props) => {
+  const {
+    recommendedProblems,
+    selectRow,
+    contests,
+    problemModels,
+    userRatingInfo,
+  } = props;
+  return (
+    <Row className="my-3">
+      <BootstrapTable
+        data={recommendedProblems}
+        keyField="id"
+        height="auto"
+        hover
+        striped
+        selectRow={selectRow}
+      >
+        <TableHeaderColumn
+          dataField="title"
+          dataFormat={(
+            title: string,
+            {
+              id,
+              contest_id,
+              is_experimental,
+            }: { id: string; contest_id: string; is_experimental: boolean }
+          ): React.ReactElement => (
+            <ProblemLink
+              isExperimentalDifficulty={is_experimental}
+              showDifficulty={true}
+              problemId={id}
+              problemTitle={title}
+              contestId={contest_id}
+              problemModel={problemModels.get(id, null)}
+              userRatingInfo={userRatingInfo}
+            />
+          )}
+        >
+          Problem
+        </TableHeaderColumn>
+        <TableHeaderColumn
+          dataField="contest_id"
+          dataFormat={(
+            contestId: string,
+            problem: Problem
+          ): React.ReactElement => {
+            const contest = contests.get(contestId);
+            return contest ? (
+              <ContestLink contest={contest} />
+            ) : (
+              <NewTabLink href={Url.formatContestUrl(problem.contest_id)}>
+                {contestId}
+              </NewTabLink>
+            );
+          }}
+        >
+          Contest
+        </TableHeaderColumn>
+        <TableHeaderColumn
+          dataField="difficulty"
+          dataFormat={(difficulty: number | null): string => {
+            if (difficulty === null) {
+              return "-";
+            }
+            return String(difficulty);
+          }}
+        >
+          <span>Difficulty</span>
+          &nbsp;
+          <HelpBadgeTooltip id="difficulty">
+            Internal rating to have 50% Solve Probability
+          </HelpBadgeTooltip>
+        </TableHeaderColumn>
+        <TableHeaderColumn
+          dataField="predictedSolveProbability"
+          dataFormat={formatPredictedSolveProbability}
+        >
+          <span>Solve Probability</span>
+          &nbsp;
+          <HelpBadgeTooltip id="probability">
+            Estimated probability that you could solve this problem if you
+            competed in the contest.
+          </HelpBadgeTooltip>
+        </TableHeaderColumn>
+        <TableHeaderColumn
+          dataField="predictedSolveTime"
+          dataFormat={formatPredictedSolveTime}
+        >
+          <span>Median Solve Time</span>
+          &nbsp;
+          <HelpBadgeTooltip id="solvetime">
+            Estimated time required to solve this problem.
+          </HelpBadgeTooltip>
+        </TableHeaderColumn>
+      </BootstrapTable>
+    </Row>
+  );
+};
+
+interface Props {
+  readonly userSubmissions: Submission[];
+  readonly problems: List<Problem>;
+  readonly contests: ImmutableMap<string, Contest>;
+  readonly problemModels: ImmutableMap<string, ProblemModel>;
+  readonly userRatingInfo: RatingInfo;
+  readonly isLoggedIn?: boolean;
+}
+
 export const Recommendations: React.FC<Props> = (props) => {
   const {
     userSubmissions,
@@ -355,65 +555,16 @@ export const Recommendations: React.FC<Props> = (props) => {
 
   return (
     <>
-      <Row className="my-3 d-flex justify-content-between">
-        <div>
-          <ButtonGroup className="mr-3">
-            {RecommendOptions.map((type) => (
-              <Button
-                key={type}
-                active={recommendOption === type}
-                onClick={(): void => setRecommendOption(type)}
-              >
-                {type}
-              </Button>
-            ))}
-          </ButtonGroup>
-          <ButtonGroup className="mr-3">
-            <UncontrolledDropdown>
-              <DropdownToggle caret>
-                {formatExcludeOption(excludeOption)}
-              </DropdownToggle>
-              <DropdownMenu>
-                {ExcludeOptions.map((option) => (
-                  <DropdownItem
-                    key={option}
-                    onClick={(): void => setExcludeOption(option)}
-                  >
-                    {formatExcludeOption(option)}
-                  </DropdownItem>
-                ))}
-              </DropdownMenu>
-            </UncontrolledDropdown>
-          </ButtonGroup>
-          <CustomInput
-            type="switch"
-            id="switchRecommendExperimental"
-            inline
-            label={
-              <span role="img" aria-label="experimental">
-                🧪
-              </span>
-            }
-            checked={recommendExperimental}
-            onChange={() => setRecommendExperimental(!recommendExperimental)}
-          />
-        </div>
-        <UncontrolledDropdown direction="left">
-          <DropdownToggle caret>
-            {recommendNum === Number.POSITIVE_INFINITY ? "All" : recommendNum}
-          </DropdownToggle>
-          <DropdownMenu>
-            {RECOMMEND_NUM_OPTIONS.map(({ text, value }) => (
-              <DropdownItem
-                key={value}
-                onClick={(): void => setRecommendNum(value)}
-              >
-                {text}
-              </DropdownItem>
-            ))}
-          </DropdownMenu>
-        </UncontrolledDropdown>
-      </Row>
+      <RecommendationsFilterBar
+        recommendOption={recommendOption}
+        setRecommendOption={setRecommendOption}
+        excludeOption={excludeOption}
+        setExcludeOption={setExcludeOption}
+        recommendExperimental={recommendExperimental}
+        setRecommendExperimental={setRecommendExperimental}
+        recommendNum={recommendNum}
+        setRecommendNum={setRecommendNum}
+      />
       {props.isLoggedIn && (
         <Row>
           <ButtonGroup>
@@ -429,94 +580,13 @@ export const Recommendations: React.FC<Props> = (props) => {
           </ButtonGroup>
         </Row>
       )}
-      <Row className="my-3">
-        <BootstrapTable
-          data={filteredRecommendedProblems}
-          keyField="id"
-          height="auto"
-          hover
-          striped
-          selectRow={selectRowProps}
-        >
-          <TableHeaderColumn
-            dataField="title"
-            dataFormat={(
-              title: string,
-              {
-                id,
-                contest_id,
-                is_experimental,
-              }: { id: string; contest_id: string; is_experimental: boolean }
-            ): React.ReactElement => (
-              <ProblemLink
-                isExperimentalDifficulty={is_experimental}
-                showDifficulty={true}
-                problemId={id}
-                problemTitle={title}
-                contestId={contest_id}
-                problemModel={problemModels.get(id, null)}
-                userRatingInfo={userRatingInfo}
-              />
-            )}
-          >
-            Problem
-          </TableHeaderColumn>
-          <TableHeaderColumn
-            dataField="contest_id"
-            dataFormat={(
-              contestId: string,
-              problem: Problem
-            ): React.ReactElement => {
-              const contest = contests.get(contestId);
-              return contest ? (
-                <ContestLink contest={contest} />
-              ) : (
-                <NewTabLink href={Url.formatContestUrl(problem.contest_id)}>
-                  {contestId}
-                </NewTabLink>
-              );
-            }}
-          >
-            Contest
-          </TableHeaderColumn>
-          <TableHeaderColumn
-            dataField="difficulty"
-            dataFormat={(difficulty: number | null): string => {
-              if (difficulty === null) {
-                return "-";
-              }
-              return String(difficulty);
-            }}
-          >
-            <span>Difficulty</span>
-            &nbsp;
-            <HelpBadgeTooltip id="difficulty">
-              Internal rating to have 50% Solve Probability
-            </HelpBadgeTooltip>
-          </TableHeaderColumn>
-          <TableHeaderColumn
-            dataField="predictedSolveProbability"
-            dataFormat={formatPredictedSolveProbability}
-          >
-            <span>Solve Probability</span>
-            &nbsp;
-            <HelpBadgeTooltip id="probability">
-              Estimated probability that you could solve this problem if you
-              competed in the contest.
-            </HelpBadgeTooltip>
-          </TableHeaderColumn>
-          <TableHeaderColumn
-            dataField="predictedSolveTime"
-            dataFormat={formatPredictedSolveTime}
-          >
-            <span>Median Solve Time</span>
-            &nbsp;
-            <HelpBadgeTooltip id="solvetime">
-              Estimated time required to solve this problem.
-            </HelpBadgeTooltip>
-          </TableHeaderColumn>
-        </BootstrapTable>
-      </Row>
+      <RecommendationsTable
+        recommendedProblems={filteredRecommendedProblems}
+        selectRow={selectRowProps}
+        contests={contests}
+        problemModels={problemModels}
+        userRatingInfo={userRatingInfo}
+      />
     </>
   );
 };
