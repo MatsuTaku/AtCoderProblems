@@ -178,48 +178,17 @@ const getRecommendProbabilityRange = (
   }
 };
 
-type ProblemIdSetActionType = "ADD" | "DELETE";
-interface ProblemIdSetAction {
-  type: ProblemIdSetActionType;
-  ids?: ProblemId[];
+interface RecommendationFilter {
+  recommendOption: RecommendOption;
+  excludeOption: ExcludeOption;
+  recommendExperimental: boolean;
+  recommendNum: number;
 }
-const problemIdSetInit = () => new Set<ProblemId>();
-const problemIdSetReducer = (
-  state: Set<ProblemId>,
-  action: ProblemIdSetAction
-): Set<ProblemId> => {
-  switch (action.type) {
-    case "ADD": {
-      if (action.ids) {
-        const newSet = new Set(state);
-        for (const id of action.ids) {
-          newSet.add(id);
-        }
-        return newSet;
-      }
-      return state;
-    }
-    case "DELETE": {
-      if (action.ids) {
-        const newSet = new Set(state);
-        for (const id of action.ids) {
-          newSet.delete(id);
-        }
-        return newSet;
-      }
-      return state;
-    }
-  }
-};
 
-interface FilterBarProps {
-  readonly recommendOption: RecommendOption;
+interface FilterBarProps extends RecommendationFilter {
   readonly setRecommendOption: (type: RecommendOption) => void;
-  readonly excludeOption: ExcludeOption;
   readonly setExcludeOption: (option: ExcludeOption) => void;
-  readonly recommendExperimental: boolean;
   readonly setRecommendExperimental: (recommend: boolean) => void;
-  readonly recommendNum: number;
   readonly setRecommendNum: (num: number) => void;
 }
 
@@ -297,147 +266,57 @@ const RecommendationsFilterBar: React.FC<FilterBarProps> = (props) => {
   );
 };
 
-interface RecommendedProblem extends Problem {
-  difficulty: number | undefined;
-  is_experimental: boolean;
-  predictedSolveTime: number | null;
-  predictedSolveProbability: number;
+type ProblemIdSetActionType = "ADD" | "DELETE";
+interface ProblemIdSetAction {
+  type: ProblemIdSetActionType;
+  ids?: ProblemId[];
 }
+const problemIdSetInit = () => new Set<ProblemId>();
+const problemIdSetReducer = (
+  state: Set<ProblemId>,
+  action: ProblemIdSetAction
+): Set<ProblemId> => {
+  switch (action.type) {
+    case "ADD": {
+      if (action.ids) {
+        const newSet = new Set(state);
+        for (const id of action.ids) {
+          newSet.add(id);
+        }
+        return newSet;
+      }
+      return state;
+    }
+    case "DELETE": {
+      if (action.ids) {
+        const newSet = new Set(state);
+        for (const id of action.ids) {
+          newSet.delete(id);
+        }
+        return newSet;
+      }
+      return state;
+    }
+  }
+};
 
 interface TableProps {
   readonly recommendedProblems: RecommendedProblem[];
-  readonly selectRow: SelectRow;
-  readonly contests: ImmutableMap<string, Contest>;
-  readonly problemModels: ImmutableMap<string, ProblemModel>;
-  readonly userRatingInfo: RatingInfo;
-}
-
-const RecommendationsTable: React.FC<TableProps> = (props) => {
-  const {
-    recommendedProblems,
-    selectRow,
-    contests,
-    problemModels,
-    userRatingInfo,
-  } = props;
-  return (
-    <Row className="my-3">
-      <BootstrapTable
-        data={recommendedProblems}
-        keyField="id"
-        height="auto"
-        hover
-        striped
-        selectRow={selectRow}
-      >
-        <TableHeaderColumn
-          dataField="title"
-          dataFormat={(
-            title: string,
-            {
-              id,
-              contest_id,
-              is_experimental,
-            }: { id: string; contest_id: string; is_experimental: boolean }
-          ): React.ReactElement => (
-            <ProblemLink
-              isExperimentalDifficulty={is_experimental}
-              showDifficulty={true}
-              problemId={id}
-              problemTitle={title}
-              contestId={contest_id}
-              problemModel={problemModels.get(id, null)}
-              userRatingInfo={userRatingInfo}
-            />
-          )}
-        >
-          Problem
-        </TableHeaderColumn>
-        <TableHeaderColumn
-          dataField="contest_id"
-          dataFormat={(
-            contestId: string,
-            problem: Problem
-          ): React.ReactElement => {
-            const contest = contests.get(contestId);
-            return contest ? (
-              <ContestLink contest={contest} />
-            ) : (
-              <NewTabLink href={Url.formatContestUrl(problem.contest_id)}>
-                {contestId}
-              </NewTabLink>
-            );
-          }}
-        >
-          Contest
-        </TableHeaderColumn>
-        <TableHeaderColumn
-          dataField="difficulty"
-          dataFormat={(difficulty: number | null): string => {
-            if (difficulty === null) {
-              return "-";
-            }
-            return String(difficulty);
-          }}
-        >
-          <span>Difficulty</span>
-          &nbsp;
-          <HelpBadgeTooltip id="difficulty">
-            Internal rating to have 50% Solve Probability
-          </HelpBadgeTooltip>
-        </TableHeaderColumn>
-        <TableHeaderColumn
-          dataField="predictedSolveProbability"
-          dataFormat={formatPredictedSolveProbability}
-        >
-          <span>Solve Probability</span>
-          &nbsp;
-          <HelpBadgeTooltip id="probability">
-            Estimated probability that you could solve this problem if you
-            competed in the contest.
-          </HelpBadgeTooltip>
-        </TableHeaderColumn>
-        <TableHeaderColumn
-          dataField="predictedSolveTime"
-          dataFormat={formatPredictedSolveTime}
-        >
-          <span>Median Solve Time</span>
-          &nbsp;
-          <HelpBadgeTooltip id="solvetime">
-            Estimated time required to solve this problem.
-          </HelpBadgeTooltip>
-        </TableHeaderColumn>
-      </BootstrapTable>
-    </Row>
-  );
-};
-
-interface Props {
-  readonly userSubmissions: Submission[];
-  readonly problems: List<Problem>;
   readonly contests: ImmutableMap<string, Contest>;
   readonly problemModels: ImmutableMap<string, ProblemModel>;
   readonly userRatingInfo: RatingInfo;
   readonly isLoggedIn?: boolean;
 }
 
-export const Recommendations: React.FC<Props> = (props) => {
+const RecommendationsTable: React.FC<TableProps> = (props) => {
   const {
-    userSubmissions,
-    problems,
+    recommendedProblems,
     contests,
     problemModels,
     userRatingInfo,
   } = props;
 
   const history = useHistory();
-
-  const [recommendOption, setRecommendOption] = useState<RecommendOption>(
-    "Moderate"
-  );
-  const [recommendExperimental, setRecommendExperimental] = useState(true);
-  const [excludeOption, setExcludeOption] = useState<ExcludeOption>("Exclude");
-  const [recommendNum, setRecommendNum] = useState(10);
 
   const [selectedProblemIdSet, selectedProblemIdSetDispatch] = React.useReducer(
     problemIdSetReducer,
@@ -447,79 +326,6 @@ export const Recommendations: React.FC<Props> = (props) => {
     selectedProblemIdSetDispatch({ type: "ADD", ids: ids });
   const deselectProblemIds = (ids: ProblemId[]) =>
     selectedProblemIdSetDispatch({ type: "DELETE", ids: ids });
-
-  if (userSubmissions.length === 0) {
-    return null;
-  }
-
-  const lastSolvedTimeMap = new Map<ProblemId, number>();
-  userSubmissions
-    .filter((s) => isAccepted(s.result))
-    .forEach((s) => {
-      const cur = lastSolvedTimeMap.get(s.problem_id) ?? 0;
-      lastSolvedTimeMap.set(s.problem_id, Math.max(s.epoch_second, cur));
-    });
-  const submittedSet = new Set(userSubmissions.map((s) => s.problem_id));
-
-  const currentSecond = Math.floor(new Date().getTime() / 1000);
-  const recommendingProbability = getRecommendProbability(recommendOption);
-  const recommendingRange = getRecommendProbabilityRange(recommendOption);
-
-  const filteredRecommendedProblems = problems
-    .filter((p) =>
-      isIncluded(p.id, excludeOption, currentSecond, lastSolvedTimeMap)
-    )
-    .filter((p) => excludeSubmittedProblem(p.id, excludeOption, submittedSet))
-    .filter((p) => problemModels.has(p.id))
-    .map((p) => ({
-      ...p,
-      difficulty: problemModels.get(p.id)?.difficulty,
-      is_experimental: problemModels.get(p.id)?.is_experimental ?? false,
-    }))
-    .filter((p) => p.difficulty !== undefined)
-    .filter((p) => recommendExperimental || !p.is_experimental)
-    .map((p) => {
-      const internalRating = userRatingInfo.internalRating;
-      let predictedSolveTime: number | null;
-      let predictedSolveProbability: number;
-      if (internalRating === null) {
-        predictedSolveTime = null;
-        predictedSolveProbability = -1;
-      } else {
-        const problemModel: ProblemModel | undefined = problemModels.get(p.id);
-        if (isProblemModelWithTimeModel(problemModel)) {
-          predictedSolveTime = predictSolveTime(problemModel, internalRating);
-        } else {
-          predictedSolveTime = null;
-        }
-        if (isProblemModelWithDifficultyModel(problemModel)) {
-          predictedSolveProbability = predictSolveProbability(
-            problemModel,
-            internalRating
-          );
-        } else {
-          predictedSolveProbability = -1;
-        }
-      }
-      return { ...p, predictedSolveTime, predictedSolveProbability };
-    })
-    .filter(
-      (p) =>
-        recommendingRange.lowerBound <= p.predictedSolveProbability &&
-        p.predictedSolveProbability < recommendingRange.upperBound
-    )
-    .sort((a, b) => {
-      const da = Math.abs(
-        a.predictedSolveProbability - recommendingProbability
-      );
-      const db = Math.abs(
-        b.predictedSolveProbability - recommendingProbability
-      );
-      return da - db;
-    })
-    .slice(0, recommendNum)
-    .sort((a, b) => (b.difficulty ?? 0) - (a.difficulty ?? 0))
-    .toArray();
 
   const selectedProblemIds = Array.from(selectedProblemIdSet);
   interface HasProblemId {
@@ -555,16 +361,6 @@ export const Recommendations: React.FC<Props> = (props) => {
 
   return (
     <>
-      <RecommendationsFilterBar
-        recommendOption={recommendOption}
-        setRecommendOption={setRecommendOption}
-        excludeOption={excludeOption}
-        setExcludeOption={setExcludeOption}
-        recommendExperimental={recommendExperimental}
-        setRecommendExperimental={setRecommendExperimental}
-        recommendNum={recommendNum}
-        setRecommendNum={setRecommendNum}
-      />
       {props.isLoggedIn && (
         <Row>
           <ButtonGroup>
@@ -580,13 +376,286 @@ export const Recommendations: React.FC<Props> = (props) => {
           </ButtonGroup>
         </Row>
       )}
+      <Row className="my-3">
+        <BootstrapTable
+          data={recommendedProblems}
+          keyField="id"
+          height="auto"
+          hover
+          striped
+          selectRow={selectRowProps}
+        >
+          <TableHeaderColumn
+            dataField="title"
+            dataFormat={(
+              title: string,
+              {
+                id,
+                contest_id,
+                is_experimental,
+              }: { id: string; contest_id: string; is_experimental: boolean }
+            ): React.ReactElement => (
+              <ProblemLink
+                isExperimentalDifficulty={is_experimental}
+                showDifficulty={true}
+                problemId={id}
+                problemTitle={title}
+                contestId={contest_id}
+                problemModel={problemModels.get(id, null)}
+                userRatingInfo={userRatingInfo}
+              />
+            )}
+          >
+            Problem
+          </TableHeaderColumn>
+          <TableHeaderColumn
+            dataField="contest_id"
+            dataFormat={(
+              contestId: string,
+              problem: Problem
+            ): React.ReactElement => {
+              const contest = contests.get(contestId);
+              return contest ? (
+                <ContestLink contest={contest} />
+              ) : (
+                <NewTabLink href={Url.formatContestUrl(problem.contest_id)}>
+                  {contestId}
+                </NewTabLink>
+              );
+            }}
+          >
+            Contest
+          </TableHeaderColumn>
+          <TableHeaderColumn
+            dataField="difficulty"
+            dataFormat={(difficulty: number | null): string => {
+              if (difficulty === null) {
+                return "-";
+              }
+              return String(difficulty);
+            }}
+          >
+            <span>Difficulty</span>
+            &nbsp;
+            <HelpBadgeTooltip id="difficulty">
+              Internal rating to have 50% Solve Probability
+            </HelpBadgeTooltip>
+          </TableHeaderColumn>
+          <TableHeaderColumn
+            dataField="predictedSolveProbability"
+            dataFormat={formatPredictedSolveProbability}
+          >
+            <span>Solve Probability</span>
+            &nbsp;
+            <HelpBadgeTooltip id="probability">
+              Estimated probability that you could solve this problem if you
+              competed in the contest.
+            </HelpBadgeTooltip>
+          </TableHeaderColumn>
+          <TableHeaderColumn
+            dataField="predictedSolveTime"
+            dataFormat={formatPredictedSolveTime}
+          >
+            <span>Median Solve Time</span>
+            &nbsp;
+            <HelpBadgeTooltip id="solvetime">
+              Estimated time required to solve this problem.
+            </HelpBadgeTooltip>
+          </TableHeaderColumn>
+        </BootstrapTable>
+      </Row>
+    </>
+  );
+};
+
+interface RecommendedProblem extends Problem {
+  difficulty: number | undefined;
+  is_experimental: boolean;
+  predictedSolveTime: number | null;
+  predictedSolveProbability: number;
+}
+
+class RecommendedProblemsGenerator {
+  problems: List<Problem>;
+  lastSolvedTimeMap: Map<ProblemId, number>;
+  submittedSet: Set<string>;
+  problemModels: ImmutableMap<string, ProblemModel>;
+  userRatingInfo: RatingInfo;
+
+  constructor(
+    problems: List<Problem>,
+    userSubmissions: Submission[],
+    problemModels: ImmutableMap<string, ProblemModel>,
+    userRatingInfo: RatingInfo
+  ) {
+    this.problems = problems;
+    this.lastSolvedTimeMap = new Map<ProblemId, number>();
+    userSubmissions
+      .filter((s) => isAccepted(s.result))
+      .forEach((s) => {
+        const cur = this.lastSolvedTimeMap.get(s.problem_id) ?? 0;
+        this.lastSolvedTimeMap.set(s.problem_id, Math.max(s.epoch_second, cur));
+      });
+    this.submittedSet = new Set(userSubmissions.map((s) => s.problem_id));
+    this.problemModels = problemModels;
+    this.userRatingInfo = userRatingInfo;
+  }
+
+  filtered(filter: RecommendationFilter) {
+    const {
+      recommendOption,
+      excludeOption,
+      recommendExperimental,
+      recommendNum,
+    } = filter;
+
+    const currentSecond = Math.floor(new Date().getTime() / 1000);
+    const recommendingProbability = getRecommendProbability(recommendOption);
+    const recommendingRange = getRecommendProbabilityRange(recommendOption);
+
+    return this.problems
+      .filter((p) =>
+        isIncluded(p.id, excludeOption, currentSecond, this.lastSolvedTimeMap)
+      )
+      .filter((p) =>
+        excludeSubmittedProblem(p.id, excludeOption, this.submittedSet)
+      )
+      .filter((p) => this.problemModels.has(p.id))
+      .map((p) => ({
+        ...p,
+        difficulty: this.problemModels.get(p.id)?.difficulty,
+        is_experimental: this.problemModels.get(p.id)?.is_experimental ?? false,
+      }))
+      .filter((p) => p.difficulty !== undefined)
+      .filter((p) => recommendExperimental || !p.is_experimental)
+      .map((p) => {
+        const internalRating = this.userRatingInfo.internalRating;
+        let predictedSolveTime: number | null;
+        let predictedSolveProbability: number;
+        if (internalRating === null) {
+          predictedSolveTime = null;
+          predictedSolveProbability = -1;
+        } else {
+          const problemModel: ProblemModel | undefined = this.problemModels.get(
+            p.id
+          );
+          if (isProblemModelWithTimeModel(problemModel)) {
+            predictedSolveTime = predictSolveTime(problemModel, internalRating);
+          } else {
+            predictedSolveTime = null;
+          }
+          if (isProblemModelWithDifficultyModel(problemModel)) {
+            predictedSolveProbability = predictSolveProbability(
+              problemModel,
+              internalRating
+            );
+          } else {
+            predictedSolveProbability = -1;
+          }
+        }
+        return { ...p, predictedSolveTime, predictedSolveProbability };
+      })
+      .filter(
+        (p) =>
+          recommendingRange.lowerBound <= p.predictedSolveProbability &&
+          p.predictedSolveProbability < recommendingRange.upperBound
+      )
+      .sort((a, b) => {
+        const da = Math.abs(
+          a.predictedSolveProbability - recommendingProbability
+        );
+        const db = Math.abs(
+          b.predictedSolveProbability - recommendingProbability
+        );
+        return da - db;
+      })
+      .slice(0, recommendNum)
+      .sort((a, b) => (b.difficulty ?? 0) - (a.difficulty ?? 0))
+      .toArray();
+  }
+}
+
+interface CommonProps {
+  readonly contests: ImmutableMap<string, Contest>;
+  readonly problemModels: ImmutableMap<string, ProblemModel>;
+  readonly userRatingInfo: RatingInfo;
+  readonly isLoggedIn?: boolean;
+}
+
+interface InnerProps extends CommonProps {
+  readonly recommendedProblemsGenerator: RecommendedProblemsGenerator;
+}
+
+interface OuterProps extends CommonProps {
+  readonly userSubmissions: Submission[];
+  readonly problems: List<Problem>;
+}
+
+const InnerRecommendations: React.FC<InnerProps> = (props) => {
+  const {
+    recommendedProblemsGenerator,
+    contests,
+    problemModels,
+    userRatingInfo,
+  } = props;
+
+  const [recommendOption, setRecommendOption] = useState<RecommendOption>(
+    "Moderate"
+  );
+  const [recommendExperimental, setRecommendExperimental] = useState(true);
+  const [excludeOption, setExcludeOption] = useState<ExcludeOption>("Exclude");
+  const [recommendNum, setRecommendNum] = useState(10);
+
+  const filteredRecommendedProblems = recommendedProblemsGenerator.filtered({
+    recommendOption,
+    excludeOption,
+    recommendExperimental,
+    recommendNum,
+  });
+
+  return (
+    <>
+      <RecommendationsFilterBar
+        recommendOption={recommendOption}
+        setRecommendOption={setRecommendOption}
+        excludeOption={excludeOption}
+        setExcludeOption={setExcludeOption}
+        recommendExperimental={recommendExperimental}
+        setRecommendExperimental={setRecommendExperimental}
+        recommendNum={recommendNum}
+        setRecommendNum={setRecommendNum}
+      />
       <RecommendationsTable
         recommendedProblems={filteredRecommendedProblems}
-        selectRow={selectRowProps}
         contests={contests}
         problemModels={problemModels}
         userRatingInfo={userRatingInfo}
+        isLoggedIn={props.isLoggedIn}
       />
     </>
+  );
+};
+
+export const Recommendations: React.FC<OuterProps> = (props) => {
+  const { problems, userSubmissions, problemModels, userRatingInfo } = props;
+
+  if (userSubmissions.length == 0) {
+    return null;
+  }
+
+  const recommendedProblemsGenerator = new RecommendedProblemsGenerator(
+    problems,
+    userSubmissions,
+    problemModels,
+    userRatingInfo
+  );
+
+  return (
+    <InnerRecommendations
+      recommendedProblemsGenerator={recommendedProblemsGenerator}
+      contests={props.contests}
+      problemModels={props.problemModels}
+      userRatingInfo={props.userRatingInfo}
+    />
   );
 };
