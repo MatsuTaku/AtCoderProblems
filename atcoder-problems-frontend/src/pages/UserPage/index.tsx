@@ -28,7 +28,7 @@ import { isLoggedIn } from "../../utils/UserState";
 import { PieChartBlock } from "./PieChartBlock";
 import { AchievementBlock } from "./AchievementBlock";
 import { ProgressChartBlock } from "./ProgressChartBlock";
-import { Recommendations } from "./Recommendations";
+import { Recommendations } from "./Recommendations/Recommendations";
 import { LanguageCount } from "./LanguageCount";
 import { DifficultyPieChart } from "./DifficultyPieChart";
 import { TrophyBlock } from "./TrophyBlock/TrophyBlock";
